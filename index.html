@@ -34,156 +34,175 @@
 </head>
 
 <body>
-  <div id="root"></div>
+<div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
-    const { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } = window.Recharts;
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+const { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } = window.Recharts;
 
-    const CSV_URL =
-      "https://docs.google.com/spreadsheets/d/e/2PACX-1vSgDAnm7O88Kizt7vT79O7K0L7uG_F_Y9_0O-m-t8N-k8j_I0_vJ8N1G9-qM5I9-qL-w9_0N_k8j/pub?gid=1995943682&single=true&output=csv";
+const CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSgDAnm7O88Kizt7vT79O7K0L7uG_F_Y9_0O-m-t8N-k8j_I0_vJ8N1G9-qM5I9-qL-w9_0N_k8j/pub?gid=1995943682&single=true&output=csv";
 
-    const useFinanceData = (url) => {
-      const [data, setData] = useState([]);
-      const [loading, setLoading] = useState(true);
+const useFinanceData = (url) => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-      useEffect(() => {
-        fetch(url)
-          .then(r => r.text())
-          .then(text => {
-            const [header, ...rows] = text.trim().split("\n");
-            const keys = header.split(",");
+  useEffect(() => {
+    fetch(url)
+      .then(r => r.text())
+      .then(text => {
+        const [header, ...rows] = text.trim().split("\n");
+        const keys = header.split(",");
 
-            const parsed = rows.map(r => {
-              const values = r.split(",");
-              return Object.fromEntries(
-                values.map((v, i) => [keys[i], v.trim()])
-              );
-            });
+        const parsed = rows.map(r => {
+          const values = r.split(",");
+          return Object.fromEntries(values.map((v,i)=>[keys[i], v.trim()]));
+        });
 
-            setData(parsed.filter(r => r.Month));
-          })
-          .finally(() => setLoading(false));
-      }, [url]);
+        setData(parsed.filter(r => r.Month));
+      })
+      .finally(() => setLoading(false));
+  }, [url]);
 
-      const stats = useMemo(() => {
-        if (!data.length) return null;
+  const stats = useMemo(() => {
+    if (!data.length) return null;
 
-        const last = data[data.length - 1];
-        const totalIncome = data.reduce((s, m) => s + (+m.Income || 0), 0);
-        const totalExpenses = data.reduce((s, m) => s + (+m.Expenses || 0), 0);
+    const last = data[data.length - 1];
 
-        return {
-          monthly: {
-            month: last.Month,
-            income: +last.Income || 0,
-            expenses: +last.Expenses || 0,
-            net: (+last.Income || 0) - (+last.Expenses || 0),
-            savingRate: last["Saving Rate"]
-          },
-          annual: {
-            net: totalIncome - totalExpenses,
-            chart: data.map(m => ({
-              name: m.Month.slice(0,3),
-              income: +m.Income || 0,
-              expenses: +m.Expenses || 0
-            }))
-          }
-        };
-      }, [data]);
+    const totalIncome = data.reduce((s,m)=>s+(+m.Income||0),0);
+    const totalExpenses = data.reduce((s,m)=>s+(+m.Expenses||0),0);
 
-      return { loading, stats };
-    };
-
-    const format = (v) =>
-      new Intl.NumberFormat("da-DK", {
-        style: "currency",
-        currency: "DKK",
-        maximumFractionDigits: 0
-      }).format(v).replace("DKK", "kr.");
-
-    const StatCard = ({ label, value }) => (
-      <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <p className="text-xs text-slate-400 uppercase">{label}</p>
-        <p className="text-lg font-black">{value}</p>
-      </div>
-    );
-
-    const MonthlyTab = ({ data }) => (
-      <div className="space-y-5">
-        <div className="bg-indigo-600 text-white p-8 rounded-3xl">
-          <p className="text-xs opacity-60">{data.month}</p>
-          <h2 className="text-4xl font-black">{format(data.net)}</h2>
-          <p className="text-sm mt-2">Saving rate: {data.savingRate}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <StatCard label="Entrate" value={format(data.income)} />
-          <StatCard label="Uscite" value={format(data.expenses)} />
-        </div>
-      </div>
-    );
-
-    const AnnualTab = ({ data }) => (
-      <div className="space-y-6">
-        <div className="bg-slate-900 text-white p-8 rounded-3xl">
-          <p className="text-xs opacity-60">Totale netto annuale</p>
-          <h2 className="text-3xl font-black">{format(data.net)}</h2>
-        </div>
-
-        <div className="bg-white p-6 rounded-3xl shadow-sm h-56">
-          <ResponsiveContainer>
-            <BarChart data={data.chart}>
-              <XAxis dataKey="name" />
-              <Tooltip />
-              <Bar dataKey="income" fill="#6366f1" />
-              <Bar dataKey="expenses" fill="#f43f5e" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-
-    const App = () => {
-      const [tab, setTab] = useState("monthly");
-      const { loading, stats } = useFinanceData(CSV_URL);
-
-      if (loading) {
-        return <div className="p-10 text-slate-400">Caricamento…</div>;
+    return {
+      monthly: {
+        month: last.Month,
+        income: +last.Income || 0,
+        expenses: +last.Expenses || 0,
+        net: (+last.Income||0) - (+last.Expenses||0),
+        savingRate: last["Saving Rate"],
+        chart: [
+          { name: "Entrate", value: +last.Income || 0 },
+          { name: "Uscite", value: +last.Expenses || 0 }
+        ]
+      },
+      annual: {
+        income: totalIncome,
+        expenses: totalExpenses,
+        net: totalIncome - totalExpenses,
+        chart: data.map(m => ({
+          name: m.Month.slice(0,3),
+          income: +m.Income || 0,
+          expenses: +m.Expenses || 0
+        }))
       }
-
-      return (
-        <main className="max-w-md mx-auto p-5 space-y-6">
-          <header>
-            <h1 className="text-2xl font-black">Bonavena</h1>
-            <p className="text-xs text-indigo-500 font-bold uppercase">
-              Finance Tracker
-            </p>
-          </header>
-
-          <div className="flex bg-slate-200 p-1 rounded-xl">
-            <button
-              onClick={() => setTab("monthly")}
-              className={tab === "monthly" ? "tab-active" : "tab"}
-            >
-              MENSILE
-            </button>
-            <button
-              onClick={() => setTab("annual")}
-              className={tab === "annual" ? "tab-active" : "tab"}
-            >
-              ANNUALE
-            </button>
-          </div>
-
-          {tab === "monthly"
-            ? <MonthlyTab data={stats.monthly} />
-            : <AnnualTab data={stats.annual} />}
-        </main>
-      );
     };
+  }, [data]);
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
+  return { loading, stats };
+};
+
+const format = (v) =>
+  new Intl.NumberFormat("da-DK", {
+    style: "currency",
+    currency: "DKK",
+    maximumFractionDigits: 0
+  }).format(v).replace("DKK","kr.");
+
+const StatCard = ({ label, value }) => (
+  <div className="bg-white p-6 rounded-3xl shadow-sm">
+    <p className="text-xs text-slate-400 uppercase">{label}</p>
+    <p className="text-xl font-black">{value}</p>
+  </div>
+);
+
+/* ---------- TAB MENSILE ---------- */
+const MonthlyTab = ({ data }) => (
+  <div className="space-y-6">
+    <div className="bg-indigo-600 text-white p-8 rounded-[2.5rem]">
+      <p className="text-xs opacity-60">{data.month}</p>
+      <h2 className="text-4xl font-black">{format(data.net)}</h2>
+      <p className="text-sm mt-2">Saving rate: {data.savingRate}</p>
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <StatCard label="Entrate" value={format(data.income)} />
+      <StatCard label="Uscite" value={format(data.expenses)} />
+    </div>
+
+    <div className="bg-white p-6 rounded-3xl shadow-sm h-48">
+      <ResponsiveContainer>
+        <BarChart data={data.chart}>
+          <XAxis dataKey="name" />
+          <Tooltip />
+          <Bar dataKey="value" fill="#6366f1" radius={[8,8,0,0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+);
+
+/* ---------- TAB ANNUALE ---------- */
+const AnnualTab = ({ data }) => (
+  <div className="space-y-6">
+    <div className="bg-slate-900 text-white p-8 rounded-[2.5rem]">
+      <p className="text-xs opacity-60">Totale netto annuale</p>
+      <h2 className="text-3xl font-black">{format(data.net)}</h2>
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <StatCard label="Entrate totali" value={format(data.income)} />
+      <StatCard label="Uscite totali" value={format(data.expenses)} />
+    </div>
+
+    <div className="bg-white p-6 rounded-3xl shadow-sm h-56">
+      <ResponsiveContainer>
+        <BarChart data={data.chart}>
+          <XAxis dataKey="name" />
+          <Tooltip />
+          <Bar dataKey="income" fill="#6366f1" radius={[6,6,0,0]} />
+          <Bar dataKey="expenses" fill="#f43f5e" radius={[6,6,0,0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  </div>
+);
+
+/* ---------- APP ---------- */
+const App = () => {
+  const [tab, setTab] = useState("monthly");
+  const { loading, stats } = useFinanceData(CSV_URL);
+
+  if (loading) return <div className="p-10 text-slate-400">Caricamento…</div>;
+
+  return (
+    <main className="max-w-md mx-auto p-5 space-y-6">
+      <header>
+        <h1 className="text-2xl font-black">Bonavena</h1>
+        <p className="text-xs text-indigo-500 font-bold uppercase">
+          Finance Tracker
+        </p>
+      </header>
+
+      <div className="flex bg-slate-200 p-1 rounded-xl">
+        <button
+          onClick={()=>setTab("monthly")}
+          className={tab==="monthly" ? "tab-active":"tab"}>
+          MENSILE
+        </button>
+        <button
+          onClick={()=>setTab("annual")}
+          className={tab==="annual" ? "tab-active":"tab"}>
+          ANNUALE
+        </button>
+      </div>
+
+      {tab === "monthly"
+        ? <MonthlyTab data={stats.monthly} />
+        : <AnnualTab data={stats.annual} />}
+    </main>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
 </body>
 </html>
