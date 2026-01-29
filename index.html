@@ -1,254 +1,189 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Bonavena">
-    
-    <!-- iPhone Home Screen Icon - Replace the href with your chosen icon URL -->
-    <link rel="apple-touch-icon" href="https://img.icons8.com/?size=100&id=123828&format=png&color=000000">
-    
-    <title>Bonavena Finance Tracker</title>
-    
-    <!-- Required Scripts via CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@0.321.0/dist/umd/lucide.min.js"></script>
-    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-    <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bonavena Finance</title>
 
-    <style>
-        /* iOS Optimization CSS */
-        body {
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none;
-            user-select: none;
-            margin: 0;
-            padding: 0;
-            background-color: #f8fafc;
-        }
-        .safe-top { padding-top: env(safe-area-inset-top); }
-        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        
-        #root {
-            min-height: 100vh;
-        }
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-        .lucide {
-            display: inline-block;
-            vertical-align: middle;
-        }
-    </style>
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Recharts -->
+  <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+    }
+    .tab {
+      @apply flex-1 py-3 text-xs font-black tracking-widest text-slate-500;
+    }
+    .tab-active {
+      @apply flex-1 py-3 text-xs font-black tracking-widest bg-white text-indigo-600 rounded-xl shadow;
+    }
+  </style>
 </head>
+
 <body>
-    <div id="root"></div>
+  <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
-        
-        // Safe Recharts handling
-        const { 
-            XAxis, YAxis, ResponsiveContainer, 
-            Cell, BarChart, Bar 
-        } = window.Recharts || {};
-        
-        const Icon = ({ name, size = 24, className = "" }) => {
-            useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            }, [name]);
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+    const { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } = window.Recharts;
 
-            return (
-                <i 
-                    data-lucide={name} 
-                    className={`${className}`}
-                    style={{ width: size, height: size }}
-                ></i>
-            );
+    const CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vSgDAnm7O88Kizt7vT79O7K0L7uG_F_Y9_0O-m-t8N-k8j_I0_vJ8N1G9-qM5I9-qL-w9_0N_k8j/pub?gid=1995943682&single=true&output=csv";
+
+    const useFinanceData = (url) => {
+      const [data, setData] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        fetch(url)
+          .then(r => r.text())
+          .then(text => {
+            const [header, ...rows] = text.trim().split("\n");
+            const keys = header.split(",");
+
+            const parsed = rows.map(r => {
+              const values = r.split(",");
+              return Object.fromEntries(
+                values.map((v, i) => [keys[i], v.trim()])
+              );
+            });
+
+            setData(parsed.filter(r => r.Month));
+          })
+          .finally(() => setLoading(false));
+      }, [url]);
+
+      const stats = useMemo(() => {
+        if (!data.length) return null;
+
+        const last = data[data.length - 1];
+        const totalIncome = data.reduce((s, m) => s + (+m.Income || 0), 0);
+        const totalExpenses = data.reduce((s, m) => s + (+m.Expenses || 0), 0);
+
+        return {
+          monthly: {
+            month: last.Month,
+            income: +last.Income || 0,
+            expenses: +last.Expenses || 0,
+            net: (+last.Income || 0) - (+last.Expenses || 0),
+            savingRate: last["Saving Rate"]
+          },
+          annual: {
+            net: totalIncome - totalExpenses,
+            chart: data.map(m => ({
+              name: m.Month.slice(0,3),
+              income: +m.Income || 0,
+              expenses: +m.Expenses || 0
+            }))
+          }
         };
+      }, [data]);
 
-        const App = () => {
-            const [view, setView] = useState('monthly');
+      return { loading, stats };
+    };
 
-            // Application Data
-            const financeData = {
-                monthly: {
-                    label: "January 2026",
-                    income: 71596,
-                    expenses: 15090,
-                    savingRate: 0.789,
-                    categories: [
-                        { name: 'Rent', value: 7500 },
-                        { name: 'Groceries', value: 1986 },
-                        { name: 'Transport', value: 1100 },
-                        { name: 'Leisure', value: 860 },
-                        { name: 'Other', value: 3674 }
-                    ],
-                    allocation: [
-                        { name: 'Base', value: 10825, color: '#ef4444' },
-                        { name: 'Extra', value: 4265, color: '#f59e0b' },
-                        { name: 'Invest.', value: 23000, color: '#10b981' },
-                        { name: 'Cash', value: 33506, color: '#3b82f6' },
-                    ]
-                },
-                annual: {
-                    label: "Year 2026",
-                    income: 95862,
-                    expenses: 27319,
-                    netWorth: 99884.92,
-                    cashLeft: 45543,
-                    emergencyTarget: 33142.5,
-                    savingRate: 0.715
-                }
-            };
+    const format = (v) =>
+      new Intl.NumberFormat("da-DK", {
+        style: "currency",
+        currency: "DKK",
+        maximumFractionDigits: 0
+      }).format(v).replace("DKK", "kr.");
 
-            const formatCurrency = (val) => {
-                return new Intl.NumberFormat('da-DK', {
-                    style: 'currency',
-                    currency: 'DKK',
-                    maximumFractionDigits: 0
-                }).format(val).replace('DKK', 'kr.');
-            };
+    const StatCard = ({ label, value }) => (
+      <div className="bg-white p-5 rounded-2xl shadow-sm">
+        <p className="text-xs text-slate-400 uppercase">{label}</p>
+        <p className="text-lg font-black">{value}</p>
+      </div>
+    );
 
-            const active = view === 'monthly' ? financeData.monthly : financeData.annual;
+    const MonthlyTab = ({ data }) => (
+      <div className="space-y-5">
+        <div className="bg-indigo-600 text-white p-8 rounded-3xl">
+          <p className="text-xs opacity-60">{data.month}</p>
+          <h2 className="text-4xl font-black">{format(data.net)}</h2>
+          <p className="text-sm mt-2">Saving rate: {data.savingRate}</p>
+        </div>
 
-            // Loading state if Recharts isn't ready
-            if (!window.Recharts) {
-                return <div className="flex items-center justify-center h-screen">Loading...</div>;
-            }
+        <div className="grid grid-cols-2 gap-4">
+          <StatCard label="Entrate" value={format(data.income)} />
+          <StatCard label="Uscite" value={format(data.expenses)} />
+        </div>
+      </div>
+    );
 
-            return (
-                <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32 overflow-y-auto">
-                    {/* Safe Area Spacer for iPhone Notch */}
-                    <div className="h-12 bg-white/80 backdrop-blur-xl sticky top-0 z-[60] safe-top" />
+    const AnnualTab = ({ data }) => (
+      <div className="space-y-6">
+        <div className="bg-slate-900 text-white p-8 rounded-3xl">
+          <p className="text-xs opacity-60">Totale netto annuale</p>
+          <h2 className="text-3xl font-black">{format(data.net)}</h2>
+        </div>
 
-                    <header className="sticky top-12 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4 flex justify-between items-center">
-                        <div>
-                            <h1 className="text-2xl font-black tracking-tight">Finance</h1>
-                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest leading-none mt-1">
-                                {active.label}
-                            </p>
-                        </div>
-                        <button className="p-3 rounded-full bg-slate-100 active:scale-90 transition-transform">
-                            <Icon name="refresh-cw" size={20} className="text-slate-600" />
-                        </button>
-                    </header>
+        <div className="bg-white p-6 rounded-3xl shadow-sm h-56">
+          <ResponsiveContainer>
+            <BarChart data={data.chart}>
+              <XAxis dataKey="name" />
+              <Tooltip />
+              <Bar dataKey="income" fill="#6366f1" />
+              <Bar dataKey="expenses" fill="#f43f5e" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
 
-                    <main className="p-5 space-y-6 max-w-md mx-auto">
-                        {/* Net Worth Card */}
-                        <section className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden active:scale-[0.98] transition-transform">
-                            <div className="relative z-10 text-white">
-                                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest mb-1">Net Worth</p>
-                                <h2 className="text-4xl font-black tracking-tighter">
-                                    {formatCurrency(financeData.annual.netWorth)}
-                                </h2>
-                                <div className="mt-6 inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-2xl">
-                                    <Icon name="trending-up" size={14} className="text-emerald-300" />
-                                    <span className="text-xs font-bold">{(active.savingRate * 100).toFixed(0)}% Saving Rate</span>
-                                </div>
-                            </div>
-                            <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-                        </section>
+    const App = () => {
+      const [tab, setTab] = useState("monthly");
+      const { loading, stats } = useFinanceData(CSV_URL);
 
-                        {/* View Switcher */}
-                        <nav className="flex bg-slate-200/50 p-1 rounded-2xl">
-                            {['monthly', 'annual'].map(m => (
-                                <button 
-                                    key={m} 
-                                    onClick={() => setView(m)} 
-                                    className={`flex-1 py-3 rounded-xl text-[10px] font-black tracking-widest transition-all ${view === m ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
-                                >
-                                    {m.toUpperCase()}
-                                </button>
-                            ))}
-                        </nav>
+      if (loading) {
+        return <div className="p-10 text-slate-400">Caricamento…</div>;
+      }
 
-                        {/* KPI Grid */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                                <Icon name="briefcase" size={20} className="text-blue-500 mb-3" />
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">Income</p>
-                                <p className="text-lg font-black">{formatCurrency(active.income)}</p>
-                            </div>
-                            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
-                                <Icon name="trending-down" size={20} className="text-rose-500 mb-3" />
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">Expenses</p>
-                                <p className="text-lg font-black">{formatCurrency(active.expenses)}</p>
-                            </div>
-                        </div>
+      return (
+        <main className="max-w-md mx-auto p-5 space-y-6">
+          <header>
+            <h1 className="text-2xl font-black">Bonavena</h1>
+            <p className="text-xs text-indigo-500 font-bold uppercase">
+              Finance Tracker
+            </p>
+          </header>
 
-                        {/* Emergency Fund */}
-                        <section className="bg-white p-6 rounded-[2.2rem] border border-slate-100 shadow-sm">
-                            <div className="flex justify-between items-center mb-4">
-                                <div className="flex items-center gap-2">
-                                    <Icon name="target" size={18} className="text-emerald-500" />
-                                    <span className="text-[11px] font-black uppercase">Emergency Fund</span>
-                                </div>
-                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">SECURE</span>
-                            </div>
-                            <div className="flex items-end justify-between">
-                                <div>
-                                    <p className="text-2xl font-black">{formatCurrency(financeData.annual.cashLeft)}</p>
-                                    <p className="text-[10px] font-bold text-slate-400">Target: {formatCurrency(financeData.annual.emergencyTarget)}</p>
-                                </div>
-                                <p className="text-xl font-black text-emerald-600">137%</p>
-                            </div>
-                        </section>
+          <div className="flex bg-slate-200 p-1 rounded-xl">
+            <button
+              onClick={() => setTab("monthly")}
+              className={tab === "monthly" ? "tab-active" : "tab"}
+            >
+              MENSILE
+            </button>
+            <button
+              onClick={() => setTab("annual")}
+              className={tab === "annual" ? "tab-active" : "tab"}
+            >
+              ANNUALE
+            </button>
+          </div>
 
-                        {/* Asset Allocation Chart */}
-                        {view === 'monthly' && (
-                            <section className="bg-slate-900 p-7 rounded-[2.5rem] shadow-xl">
-                                <h3 className="text-[10px] font-black text-slate-500 uppercase mb-6 flex items-center gap-2">
-                                    <Icon name="pie-chart" size={14} className="text-indigo-400" /> Asset Allocation
-                                </h3>
-                                <div className="h-[180px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={financeData.monthly.allocation} layout="vertical" margin={{ left: -30 }}>
-                                            <XAxis type="number" hide />
-                                            <YAxis 
-                                                dataKey="name" 
-                                                type="category" 
-                                                width={100} 
-                                                tick={{ fontSize: 9, fill: '#64748b', fontWeight: 800 }} 
-                                                axisLine={false} 
-                                                tickLine={false} 
-                                            />
-                                            <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={12}>
-                                                {financeData.monthly.allocation.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </section>
-                        )}
-                    </main>
+          {tab === "monthly"
+            ? <MonthlyTab data={stats.monthly} />
+            : <AnnualTab data={stats.annual} />}
+        </main>
+      );
+    };
 
-                    {/* Tab Bar */}
-                    <footer className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-slate-100 px-10 pt-4 pb-10 flex justify-around items-center rounded-t-[2.5rem] z-[60] safe-bottom">
-                        <button className="focus:outline-none"><Icon name="bar-chart-3" size={28} className="text-indigo-600" /></button>
-                        <button className="focus:outline-none"><Icon name="calendar" size={28} className="text-slate-300" /></button>
-                        <button className="focus:outline-none"><Icon name="credit-card" size={28} className="text-slate-300" /></button>
-                        <button className="focus:outline-none"><Icon name="wallet" size={28} className="text-slate-300" /></button>
-                    </footer>
-                </div>
-            );
-        };
-
-        // Secure initialization
-        window.addEventListener('load', () => {
-            const rootElement = document.getElementById('root');
-            if (rootElement) {
-                const root = ReactDOM.createRoot(rootElement);
-                root.render(<App />);
-            }
-        });
-    </script>
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
 </body>
 </html>
