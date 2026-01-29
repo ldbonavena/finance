@@ -1,14 +1,18 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Bonavena">
+    
+    <!-- iPhone Home Screen Icon -->
+    <link rel="apple-touch-icon" href="https://img.icons8.com/ios-filled/180/4f46e5/combo-chart.png">
+    
     <title>Bonavena Finance Tracker</title>
     
-    <!-- Script necessari caricati via CDN (Ordine Corretto) -->
+    <!-- Required Scripts via CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -18,7 +22,7 @@
     <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js"></script>
 
     <style>
-        /* CSS per ottimizzazione iOS */
+        /* iOS Optimization CSS */
         body {
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: none;
@@ -46,7 +50,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
-        // Gestione sicura di Recharts (attesa caricamento globale)
+        // Safe Recharts handling
         const { 
             XAxis, YAxis, ResponsiveContainer, 
             Cell, BarChart, Bar 
@@ -71,29 +75,29 @@
         const App = () => {
             const [view, setView] = useState('monthly');
 
-            // Dati dell'applicazione
+            // Application Data
             const financeData = {
                 monthly: {
-                    label: "Gennaio 2026",
+                    label: "January 2026",
                     income: 71596,
                     expenses: 15090,
                     savingRate: 0.789,
                     categories: [
-                        { name: 'Affitto', value: 7500 },
-                        { name: 'Spesa', value: 1986 },
-                        { name: 'Trasporti', value: 1100 },
-                        { name: 'Svago', value: 860 },
-                        { name: 'Altro', value: 3674 }
+                        { name: 'Rent', value: 7500 },
+                        { name: 'Groceries', value: 1986 },
+                        { name: 'Transport', value: 1100 },
+                        { name: 'Leisure', value: 860 },
+                        { name: 'Other', value: 3674 }
                     ],
                     allocation: [
                         { name: 'Base', value: 10825, color: '#ef4444' },
                         { name: 'Extra', value: 4265, color: '#f59e0b' },
                         { name: 'Invest.', value: 23000, color: '#10b981' },
-                        { name: 'Liquid.', value: 33506, color: '#3b82f6' },
+                        { name: 'Cash', value: 33506, color: '#3b82f6' },
                     ]
                 },
                 annual: {
-                    label: "Anno 2026",
+                    label: "Year 2026",
                     income: 95862,
                     expenses: 27319,
                     netWorth: 99884.92,
@@ -113,13 +117,14 @@
 
             const active = view === 'monthly' ? financeData.monthly : financeData.annual;
 
-            // Se Recharts non è caricato, mostra un caricamento semplice
+            // Loading state if Recharts isn't ready
             if (!window.Recharts) {
-                return <div className="flex items-center justify-center h-screen">Caricamento...</div>;
+                return <div className="flex items-center justify-center h-screen">Loading...</div>;
             }
 
             return (
                 <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32 overflow-y-auto">
+                    {/* Safe Area Spacer for iPhone Notch */}
                     <div className="h-12 bg-white/80 backdrop-blur-xl sticky top-0 z-[60] safe-top" />
 
                     <header className="sticky top-12 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4 flex justify-between items-center">
@@ -135,9 +140,10 @@
                     </header>
 
                     <main className="p-5 space-y-6 max-w-md mx-auto">
+                        {/* Net Worth Card */}
                         <section className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden active:scale-[0.98] transition-transform">
                             <div className="relative z-10 text-white">
-                                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest mb-1">Patrimonio Netto</p>
+                                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest mb-1">Net Worth</p>
                                 <h2 className="text-4xl font-black tracking-tighter">
                                     {formatCurrency(financeData.annual.netWorth)}
                                 </h2>
@@ -149,6 +155,7 @@
                             <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
                         </section>
 
+                        {/* View Switcher */}
                         <nav className="flex bg-slate-200/50 p-1 rounded-2xl">
                             {['monthly', 'annual'].map(m => (
                                 <button 
@@ -161,26 +168,28 @@
                             ))}
                         </nav>
 
+                        {/* KPI Grid */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                                 <Icon name="briefcase" size={20} className="text-blue-500 mb-3" />
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">Entrate</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Income</p>
                                 <p className="text-lg font-black">{formatCurrency(active.income)}</p>
                             </div>
                             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
                                 <Icon name="trending-down" size={20} className="text-rose-500 mb-3" />
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">Uscite</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">Expenses</p>
                                 <p className="text-lg font-black">{formatCurrency(active.expenses)}</p>
                             </div>
                         </div>
 
+                        {/* Emergency Fund */}
                         <section className="bg-white p-6 rounded-[2.2rem] border border-slate-100 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="flex items-center gap-2">
                                     <Icon name="target" size={18} className="text-emerald-500" />
-                                    <span className="text-[11px] font-black uppercase">Fondo Emergenza</span>
+                                    <span className="text-[11px] font-black uppercase">Emergency Fund</span>
                                 </div>
-                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">SICURO</span>
+                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">SECURE</span>
                             </div>
                             <div className="flex items-end justify-between">
                                 <div>
@@ -191,6 +200,7 @@
                             </div>
                         </section>
 
+                        {/* Asset Allocation Chart */}
                         {view === 'monthly' && (
                             <section className="bg-slate-900 p-7 rounded-[2.5rem] shadow-xl">
                                 <h3 className="text-[10px] font-black text-slate-500 uppercase mb-6 flex items-center gap-2">
@@ -220,6 +230,7 @@
                         )}
                     </main>
 
+                    {/* Tab Bar */}
                     <footer className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-slate-100 px-10 pt-4 pb-10 flex justify-around items-center rounded-t-[2.5rem] z-[60] safe-bottom">
                         <button className="focus:outline-none"><Icon name="bar-chart-3" size={28} className="text-indigo-600" /></button>
                         <button className="focus:outline-none"><Icon name="calendar" size={28} className="text-slate-300" /></button>
@@ -230,7 +241,7 @@
             );
         };
 
-        // Inizializzazione sicura dopo il caricamento della pagina
+        // Secure initialization
         window.addEventListener('load', () => {
             const rootElement = document.getElementById('root');
             if (rootElement) {
