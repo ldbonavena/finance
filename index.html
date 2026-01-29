@@ -1,30 +1,43 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bonavena Finance</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Finance Tracker</title>
 
-  <!-- React -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- React 18 -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+<!-- Babel -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Recharts -->
-  <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js"></script>
+<!-- Recharts -->
+<script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      background: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-    }
-  </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #F2F2F7;
+}
+
+.ios-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+.tab-active {
+  color: #007AFF;
+  border-bottom: 3px solid #007AFF;
+}
+</style>
 </head>
 
 <body>
@@ -33,180 +46,197 @@
 <script type="text/babel">
 const { useState, useEffect, useMemo } = React;
 
-const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vSgDAnm7O88Kizt7vT79O7K0L7uG_F_Y9_0O-m-t8N-k8j_I0_vJ8N1G9-qM5I9-qL-w9_0N_k8j/pub?gid=1995943682&single=true&output=csv";
+const EXPORT_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQp2rywvIQZGJhnKyI1Mypit8k-QEqt1f4grevmoHNDRreF9JA5CYhBN_6AGK67Nh4Ub_Gch5q9ko5y/pub?output=csv";
 
-/* ---------- DATA ---------- */
-const useFinanceData = (url) => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+const formatCurrency = v =>
+new Intl.NumberFormat('da-DK', {
+  style: 'currency',
+  currency: 'DKK',
+  maximumFractionDigits: 0
+}).format(v);
 
-  useEffect(() => {
-    fetch(url)
-      .then(r => r.text())
-      .then(text => {
-        const [header, ...rows] = text.trim().split("\n");
-        const keys = header.split(",");
+const cleanValue = v => {
+  if (!v) return 0;
+  let c = v.toString().replace(/"/g,'').trim();
+  const isPercent = c.includes('%');
+  c = c.replace('%','');
 
-        const parsed = rows.map(r => {
-          const values = r.split(",");
-          return Object.fromEntries(values.map((v,i)=>[keys[i], v.trim()]));
-        });
+  if (c.includes(',') && c.includes('.')) {
+    c = c.replace(/\./g,'').replace(',','.');
+  } else if (c.includes(',')) {
+    c = c.replace(',','.');
+  }
 
-        setData(parsed.filter(r => r.Month));
-      })
-      .finally(() => setLoading(false));
-  }, [url]);
-
-  const stats = useMemo(() => {
-    if (!data.length) return null;
-
-    const last = data[data.length - 1];
-    const totalIncome = data.reduce((s,m)=>s+(+m.Income||0),0);
-    const totalExpenses = data.reduce((s,m)=>s+(+m.Expenses||0),0);
-
-    return {
-      monthly: {
-        month: last.Month,
-        income: +last.Income || 0,
-        expenses: +last.Expenses || 0,
-        net: (+last.Income||0) - (+last.Expenses||0),
-        savingRate: last["Saving Rate"],
-        chart: [
-          { name: "Entrate", value: +last.Income || 0 },
-          { name: "Uscite", value: +last.Expenses || 0 }
-        ]
-      },
-      annual: {
-        income: totalIncome,
-        expenses: totalExpenses,
-        net: totalIncome - totalExpenses,
-        chart: data.map(m => ({
-          name: m.Month.slice(0,3),
-          income: +m.Income || 0,
-          expenses: +m.Expenses || 0
-        }))
-      }
-    };
-  }, [data]);
-
-  return { loading, stats };
+  c = c.replace(/[^\d.-]/g,'');
+  const n = parseFloat(c);
+  if (isNaN(n)) return 0;
+  return isPercent ? n/100 : n;
 };
 
-const format = (v) =>
-  new Intl.NumberFormat("da-DK", {
-    style: "currency",
-    currency: "DKK",
-    maximumFractionDigits: 0
-  }).format(v).replace("DKK","kr.");
-
-/* ---------- COMPONENTS ---------- */
-const StatCard = ({ label, value }) => (
-  <div className="bg-white p-6 rounded-3xl shadow-sm">
-    <p className="text-xs text-slate-400 uppercase">{label}</p>
-    <p className="text-xl font-black">{value}</p>
+const StatCard = ({label,value,color}) => (
+  <div className="ios-card p-4 h-24 flex flex-col justify-between">
+    <p className="text-xs font-bold text-gray-400 uppercase">{label}</p>
+    <p className={`text-lg font-bold ${color}`}>{value}</p>
   </div>
 );
 
-const MonthlyTab = ({ data }) => {
-  const { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } = window.Recharts;
+function App() {
+
+  if (!window.Recharts) {
+    return (
+      <div className="h-screen flex items-center justify-center text-red-500">
+        Recharts non caricato
+      </div>
+    );
+  }
+
+  const R = window.Recharts;
+
+  const [data,setData] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState(null);
+  const [tab,setTab] = useState('monthly');
+
+  useEffect(() => {
+    fetch(EXPORT_URL)
+      .then(r => r.text())
+      .then(text => {
+        const rows = text.split(/\r?\n/).filter(r => r.trim());
+        const sep = rows[0].includes(';') ? ';' : ',';
+        const rx = new RegExp(`${sep}(?=(?:[^"]*"[^"]*")*[^"]*$)`);
+
+        const parsed = rows.slice(1).map((r,i) => {
+          const v = r.split(rx).map(x => x.replace(/"/g,''));
+          return {
+            id:i,
+            Month:v[0],
+            Income:cleanValue(v[1]),
+            Expenses:cleanValue(v[2]),
+            SavingRate:cleanValue(v[3])
+          };
+        }).filter(r => r.Month);
+
+        setData(parsed);
+        setLoading(false);
+      })
+      .catch(e => {
+        setError(e.message);
+        setLoading(false);
+      });
+  },[]);
+
+  const monthly = useMemo(() => {
+    if (!data.length) return null;
+    const m = data[data.length-1];
+    return {
+      ...m,
+      net: m.Income - m.Expenses,
+      chart:[
+        {name:'Income',value:m.Income,fill:'#34C759'},
+        {name:'Expenses',value:m.Expenses,fill:'#FF3B30'}
+      ]
+    };
+  },[data]);
+
+  const annual = useMemo(() => {
+    if (!data.length) return null;
+    const inc = data.reduce((s,d)=>s+d.Income,0);
+    const exp = data.reduce((s,d)=>s+d.Expenses,0);
+    return { inc, exp, net: inc-exp };
+  },[data]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center text-gray-400">
+        Loading…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen flex items-center justify-center text-red-500">
+        {error}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-indigo-600 text-white p-8 rounded-[2.5rem]">
-        <p className="text-xs opacity-60">{data.month}</p>
-        <h2 className="text-4xl font-black">{format(data.net)}</h2>
-        <p className="text-sm mt-2">Saving rate: {data.savingRate}</p>
-      </div>
+    <div className="max-w-md mx-auto min-h-screen pb-8">
 
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Entrate" value={format(data.income)} />
-        <StatCard label="Uscite" value={format(data.expenses)} />
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data.chart}>
-            <XAxis dataKey="name" />
-            <Tooltip />
-            <Bar dataKey="value" fill="#6366f1" radius={[8,8,0,0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-};
-
-const AnnualTab = ({ data }) => {
-  const { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } = window.Recharts;
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-slate-900 text-white p-8 rounded-[2.5rem]">
-        <p className="text-xs opacity-60">Totale netto annuale</p>
-        <h2 className="text-3xl font-black">{format(data.net)}</h2>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Entrate totali" value={format(data.income)} />
-        <StatCard label="Uscite totali" value={format(data.expenses)} />
-      </div>
-
-      <div className="bg-white p-6 rounded-3xl shadow-sm h-56">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data.chart}>
-            <XAxis dataKey="name" />
-            <Tooltip />
-            <Bar dataKey="income" fill="#6366f1" />
-            <Bar dataKey="expenses" fill="#f43f5e" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-};
-
-/* ---------- APP ---------- */
-const App = () => {
-  const [tab, setTab] = useState("monthly");
-  const { loading, stats } = useFinanceData(CSV_URL);
-
-  if (loading) return <div className="p-10 text-slate-400">Caricamento…</div>;
-
-  return (
-    <main className="max-w-md mx-auto p-5 space-y-6">
-      <header>
-        <h1 className="text-2xl font-black">Bonavena</h1>
-        <p className="text-xs text-indigo-500 font-bold uppercase">
-          Finance Tracker
-        </p>
+      <header className="bg-white px-6 pt-10 pb-4 sticky top-0 z-10 border-b">
+        <h1 className="text-3xl font-bold">Finance</h1>
       </header>
 
-      <div className="flex bg-slate-200 p-1 rounded-xl">
+      <div className="flex bg-white border-b sticky top-[88px] z-10">
         <button
-          onClick={()=>setTab("monthly")}
-          className={`flex-1 py-3 text-xs font-black tracking-widest rounded-xl ${
-            tab==="monthly" ? "bg-white text-indigo-600 shadow" : "text-slate-500"
-          }`}>
-          MENSILE
+          className={`flex-1 py-3 font-semibold ${tab==='monthly'?'tab-active':'text-gray-400'}`}
+          onClick={()=>setTab('monthly')}>
+          Monthly
         </button>
         <button
-          onClick={()=>setTab("annual")}
-          className={`flex-1 py-3 text-xs font-black tracking-widest rounded-xl ${
-            tab==="annual" ? "bg-white text-indigo-600 shadow" : "text-slate-500"
-          }`}>
-          ANNUALE
+          className={`flex-1 py-3 font-semibold ${tab==='annual'?'tab-active':'text-gray-400'}`}
+          onClick={()=>setTab('annual')}>
+          Annual
         </button>
       </div>
 
-      {tab === "monthly"
-        ? <MonthlyTab data={stats.monthly} />
-        : <AnnualTab data={stats.annual} />}
-    </main>
-  );
-};
+      <main className="p-4 space-y-5">
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+        {tab==='monthly' && monthly && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Income" value={formatCurrency(monthly.Income)} color="text-green-600"/>
+              <StatCard label="Expenses" value={formatCurrency(monthly.Expenses)} color="text-red-500"/>
+              <StatCard label="Net" value={formatCurrency(monthly.net)} color="text-blue-600"/>
+              <StatCard label="Saving Rate" value={`${(monthly.SavingRate*100).toFixed(1)}%`} color="text-indigo-600"/>
+            </div>
+
+            <div className="ios-card p-5 h-64">
+              <R.ResponsiveContainer>
+                <R.BarChart data={monthly.chart}>
+                  <R.CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                  <R.XAxis dataKey="name"/>
+                  <R.YAxis/>
+                  <R.Tooltip/>
+                  <R.Bar dataKey="value" radius={[8,8,8,8]}/>
+                </R.BarChart>
+              </R.ResponsiveContainer>
+            </div>
+          </>
+        )}
+
+        {tab==='annual' && annual && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Total Income" value={formatCurrency(annual.inc)} color="text-green-600"/>
+              <StatCard label="Total Expenses" value={formatCurrency(annual.exp)} color="text-red-500"/>
+              <StatCard label="Net" value={formatCurrency(annual.net)} color="text-blue-600"/>
+            </div>
+
+            <div className="ios-card p-5 h-64">
+              <R.ResponsiveContainer>
+                <R.BarChart data={data}>
+                  <R.CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                  <R.XAxis dataKey="Month"/>
+                  <R.YAxis/>
+                  <R.Tooltip/>
+                  <R.Legend/>
+                  <R.Bar dataKey="Income" fill="#34C759"/>
+                  <R.Bar dataKey="Expenses" fill="#FF3B30"/>
+                </R.BarChart>
+              </R.ResponsiveContainer>
+            </div>
+          </>
+        )}
+
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
