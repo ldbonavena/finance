@@ -8,14 +8,12 @@
     <meta name="apple-mobile-web-app-title" content="Bonavena">
     <title>Bonavena Finance Tracker</title>
     
-    <!-- Script necessari caricati via CDN -->
+    <!-- Script necessari caricati via CDN (Ordine Corretto) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carichiamo Lucide correttamente -->
     <script src="https://unpkg.com/lucide@0.321.0/dist/umd/lucide.min.js"></script>
-    <!-- Recharts richiede prop-types e recharts stesso -->
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
     <script src="https://unpkg.com/recharts@2.12.0/umd/Recharts.js"></script>
 
@@ -32,12 +30,10 @@
         .safe-top { padding-top: env(safe-area-inset-top); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
         
-        /* Assicuriamoci che il root occupi tutto lo spazio */
         #root {
             min-height: 100vh;
         }
 
-        /* Stile per le icone Lucide */
         .lucide {
             display: inline-block;
             vertical-align: middle;
@@ -49,15 +45,14 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
+        
+        // Gestione sicura di Recharts (attesa caricamento globale)
         const { 
             XAxis, YAxis, ResponsiveContainer, 
             Cell, BarChart, Bar 
-        } = Recharts;
+        } = window.Recharts || {};
         
-        // Componente Icona aggiornato per caricare correttamente Lucide
         const Icon = ({ name, size = 24, className = "" }) => {
-            const iconRef = useRef(null);
-
             useEffect(() => {
                 if (window.lucide) {
                     window.lucide.createIcons();
@@ -76,6 +71,7 @@
         const App = () => {
             const [view, setView] = useState('monthly');
 
+            // Dati dell'applicazione
             const financeData = {
                 monthly: {
                     label: "Gennaio 2026",
@@ -117,9 +113,13 @@
 
             const active = view === 'monthly' ? financeData.monthly : financeData.annual;
 
+            // Se Recharts non è caricato, mostra un caricamento semplice
+            if (!window.Recharts) {
+                return <div className="flex items-center justify-center h-screen">Caricamento...</div>;
+            }
+
             return (
                 <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32 overflow-y-auto">
-                    {/* Safe Area Spacer per iPhone Notch */}
                     <div className="h-12 bg-white/80 backdrop-blur-xl sticky top-0 z-[60] safe-top" />
 
                     <header className="sticky top-12 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4 flex justify-between items-center">
@@ -221,26 +221,23 @@
                     </main>
 
                     <footer className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-2xl border-t border-slate-100 px-10 pt-4 pb-10 flex justify-around items-center rounded-t-[2.5rem] z-[60] safe-bottom">
-                        <button className="focus:outline-none">
-                            <Icon name="bar-chart-3" size={28} className="text-indigo-600" />
-                        </button>
-                        <button className="focus:outline-none">
-                            <Icon name="calendar" size={28} className="text-slate-300" />
-                        </button>
-                        <button className="focus:outline-none">
-                            <Icon name="credit-card" size={28} className="text-slate-300" />
-                        </button>
-                        <button className="focus:outline-none">
-                            <Icon name="wallet" size={28} className="text-slate-300" />
-                        </button>
+                        <button className="focus:outline-none"><Icon name="bar-chart-3" size={28} className="text-indigo-600" /></button>
+                        <button className="focus:outline-none"><Icon name="calendar" size={28} className="text-slate-300" /></button>
+                        <button className="focus:outline-none"><Icon name="credit-card" size={28} className="text-slate-300" /></button>
+                        <button className="focus:outline-none"><Icon name="wallet" size={28} className="text-slate-300" /></button>
                     </footer>
                 </div>
             );
         };
 
-        const rootElement = document.getElementById('root');
-        const root = ReactDOM.createRoot(rootElement);
-        root.render(<App />);
+        // Inizializzazione sicura dopo il caricamento della pagina
+        window.addEventListener('load', () => {
+            const rootElement = document.getElementById('root');
+            if (rootElement) {
+                const root = ReactDOM.createRoot(rootElement);
+                root.render(<App />);
+            }
+        });
     </script>
 </body>
 </html>
